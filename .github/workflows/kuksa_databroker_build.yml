@@ -111,7 +111,7 @@ jobs:
 # Run on selfhosted, becasue our runner has native ARM build in a remote
 # builder (no need for qemu
   build-container:
-    runs-on: [ self-hosted ]
+    runs-on: ubuntu-latest
     needs: checkrights
 
     steps:
