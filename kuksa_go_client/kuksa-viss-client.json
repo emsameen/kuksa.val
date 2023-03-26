@@ -1,8 +1,0 @@
-{
-    "serverAddress": "localhost",
-    "serverPort": 8090,
-    "insecure": false,
-    "certsDir": "../kuksa_certificates/",
-    "tokenPath" : "../kuksa_certificates/jwt/super-admin.json.token",
-    "transport": "WebSocket"
-}

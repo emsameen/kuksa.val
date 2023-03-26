@@ -8,6 +8,8 @@ on:
     paths-ignore:
     - ".github/workflows/kuksa_databroker_build.yml"
     - "kuksa_databroker/**"
+    - "kuksa_go_client/**"
+    - "kuksa_client/**"
     - "Cargo.*"
     - "Cross.toml"
   workflow_dispatch:
@@ -46,7 +48,7 @@ jobs:
       if: needs.checkrights.outputs.have_secrets == 'true'
       uses: docker/login-action@v2
       with:
-          registry: ${{ needs.checkrights.outputs.registry }}
+          registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 

@@ -1,10 +1,10 @@
 # KUKSA.VAL
 ![kuksa.val Logo](../doc/pictures/logo.png)
 
-kuksa-val-server is a reature rich in-vehicle data server written in C++ providing authorized access to vehicle data.
+kuksa-val-server is a feature rich in-vehicle data server written in C++ providing authorized access to vehicle data.
 
 
-Check [System Architecture](doc/system-architecture.md) for an overview how KUKSA.val can be used and deployed in a modern Software Defined Vehicle.
+Check [System Architecture](../doc/system-architecture.md) for an overview how KUKSA.val can be used and deployed in a modern Software Defined Vehicle.
 
 kuksa-val-server serves signals described using the [COVESA VSS data model](https://github.com/COVESA/vehicle_signal_specification). VSS data is provided to applications using a variant based on the W3C VISS Interface or GRPC. KUKSA.val supports VISS V1 https://www.w3.org/TR/vehicle-information-service/ and extensions as well as parts of the upcomming VISS2 standard ([Gen2 Core](https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html), [Gen2 Transport](https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Transport.html)), that are applicable to in-vehicle VSS servers.
 
@@ -12,11 +12,11 @@ See [Supported Protocol](../doc/protocol/README.md) for a detailled overview of 
 
 ## Features
  - Websocket interface, TLS-secured or plain
- - [Fine-grained authorisation](../doc/jwt.md) based on JSON Webtokens (RFC 7519)
+ - [Fine-grained authorisation](../doc/KUKSA.val_server/jwt.md) based on JSON Webtokens (RFC 7519)
  - Built-in MQTT publisher
  - Python [Kuksa Client](../kuksa-client) to interactively explore and modify the VSS data points and data structure
  - Multiple [example apps](../kuksa_apps) in different programming languages to communicate with different frameworks
- - Multiple [feeders](../kuksa-feeders) to provide vehicle data for the `kuksa.val` server
+ - Multiple [feeders](https://github.com/eclipse/kuksa.val.feeders/tree/main) to provide vehicle data for the `kuksa.val` server
  - Support most of data types, which is specified in [COVESA VSS data model](https://covesa.github.io/vehicle_signal_specification/rule_set/data_entry/data_types/).
 
 
@@ -25,37 +25,28 @@ See [Supported Protocol](../doc/protocol/README.md) for a detailled overview of 
 ### Using  Docker Image
 If you prefer to build kuksa.val yourself skip to [Building KUKSA.val](#Building-kuksaval).
 
-Download a current docker image from one of our CI server:
+Download a current KUKSA.val server docker image from one of our container registry:
 
-- https://ci.eclipse.org/kuksa/job/kuksa.val/job/master/
-- https://kuksaval.northeurope.cloudapp.azure.com/job/kuksaval-upstream/
+- https://github.com/eclipse/kuksa.val/pkgs/container/kuksa.val%2Fkuksa-val
 
 The container images should work with any OCI compliant container runtime, in this document we assume you are using docker
 
-Import the docker image
+Pull the docker image
 
 ```
-docker load -i kuksa-val-b3084b9-amd64.tar.xz
+docker pull ghcr.io/eclipse/kuksa.val/kuksa-val:latest
 ```
 
-Your build tag may vary, and for ARM machines you need to choose an arm64 images.
 
-Prepare an empty directory `$HOME/kuksaval.config`.  Run the docker image using the tag reported by `docker load`:
+Prepare an empty directory `$HOME/kuksaval.config`.  Run the desired docker image using `docker run`:
 
 ```bash
-docker run -it --rm -v $HOME/kuksaval.config:/config  -p 127.0.0.1:8090:8090 -e LOG_LEVEL=ALL amd64/kuksa-val:b3084b9
+docker run -it --rm --net=host -v $HOME/kuksaval.config:/config  -p 127.0.0.1:8090:8090 -e LOG_LEVEL=ALL ghcr.io/eclipse/kuksa.val/kuksa-val:master
 ```
 
-Alternatively you can run a released version directly from the ghcr.io registry, i.e.
+More information on using the docker images can be found [here](../doc/KUKSA.val_server/run-docker.md).
 
-```bash
-docker run -it --rm -v $HOME/kuksaval.config:/config  -p 127.0.0.1:8090:8090 -e LOG_LEVEL=ALL ghcr.io/eclipse/kuksa.val/kuksa-val:0.2.1-amd64
-
-```
-
-More information on using the docker images can be found [here](../doc/run-docker.md).
-
-To learn, how to build your own docker image see [doc/build-docker.md](../doc/build-docker.md).
+To learn, how to build your own docker image see [doc/build-docker.md](../doc/KUKSA.val_server/build-docker.md).
 
 If this is succesful you can skip to [using kuksa.val](#using-kuksaval).
 
@@ -110,9 +101,9 @@ Additional information about our cmake setup (in case you need adavanced options
 After you successfully built the kuksa.val server you can run it like this
 
 ```bash
-#assuming you are inside kuksa.val/build directory
+#assuming you are inside kuksa-val-server/build directory
 cd src
-./kuksa-val-server  --vss ./vss_release_3.0.json --log-level ALL
+./kuksa-val-server  --vss ./vss_release_3.1.1.json --log-level ALL
 
 ```
 Setting log level to `ALL` gives you some more information about what is going on.
@@ -120,7 +111,7 @@ Setting log level to `ALL` gives you some more information about what is going o
 You can also edit [config.ini](./config.ini) file to configure kuksa val server. This file will be copied to the build directory and used als default config,
 if no other config file is specified using the command line option `-c/--config-file`.
 
-For more information check [usage](../doc/usage.md).
+For more information check [usage](../doc/KUKSA.val_server/usage.md).
 
 ## Using kuksa.val
 The easiest way to try `kuksa-val-server` out, is to use the test client [`kuksa-client`](../kuksa-client):
@@ -136,7 +127,7 @@ The jwt tokens for testing can also be found under [kuksa_certificates/jwt](../k
 
 You can also use the provided python sdk to develop your own `kuksa.val` clients. More details about `kuksa-client` can be found [here](../kuksa-client).
 
-Additionally, you can use the [example apps](../kuksa_apps) and [feeders](../kuksa-feeders) to handle vehicle data, interacting with `kuksa-val-server`.
+Additionally, you can use the [example apps](../kuksa_apps) and [feeders](https://github.com/eclipse/kuksa.val.feeders/tree/main) to handle vehicle data, interacting with `kuksa-val-server`.
 
 ## Using kuksa.val with a gRPC Client
 Additionally theres exists an experimental gRPC server. The easiest way to test the server is the kuksa_grpc_client.

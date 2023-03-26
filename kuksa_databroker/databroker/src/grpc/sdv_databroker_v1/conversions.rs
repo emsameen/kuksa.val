@@ -97,9 +97,9 @@ impl From<&broker::Datapoint> for proto::Datapoint {
     }
 }
 
-impl From<&broker::DataValue> for proto::Datapoint {
-    fn from(data_value: &broker::DataValue) -> Self {
-        let value = match &data_value {
+impl From<&broker::QueryField> for proto::Datapoint {
+    fn from(query_field: &broker::QueryField) -> Self {
+        let value = match &query_field.value {
             broker::DataValue::Bool(value) => proto::datapoint::Value::BoolValue(*value),
             broker::DataValue::String(value) => {
                 proto::datapoint::Value::StringValue(value.to_owned())
@@ -151,7 +151,7 @@ impl From<&broker::DataValue> for proto::Datapoint {
                 })
             }
             broker::DataValue::NotAvailable => proto::datapoint::Value::FailureValue(
-                proto::datapoint::Failure::NotAvailable as i32,
+                proto::datapoint::Failure::NotAvailable.into(),
             ),
         };
 
@@ -273,6 +273,16 @@ impl From<&broker::DataType> for proto::DataType {
     }
 }
 
+impl From<&broker::EntryType> for proto::EntryType {
+    fn from(entry_type: &broker::EntryType) -> Self {
+        match entry_type {
+            broker::EntryType::Sensor => proto::EntryType::Sensor,
+            broker::EntryType::Attribute => proto::EntryType::Attribute,
+            broker::EntryType::Actuator => proto::EntryType::Actuator,
+        }
+    }
+}
+
 impl From<&proto::ChangeType> for broker::ChangeType {
     fn from(change_type: &proto::ChangeType) -> Self {
         match change_type {
@@ -287,6 +297,7 @@ impl From<&broker::Metadata> for proto::Metadata {
     fn from(metadata: &broker::Metadata) -> Self {
         proto::Metadata {
             id: metadata.id,
+            entry_type: proto::EntryType::from(&metadata.entry_type) as i32,
             name: metadata.path.to_owned(),
             data_type: proto::DataType::from(&metadata.data_type) as i32,
             change_type: proto::ChangeType::Continuous as i32, // TODO: Add to metadata
@@ -303,6 +314,8 @@ impl From<&broker::UpdateError> for proto::DatapointError {
                 proto::DatapointError::InvalidType
             }
             broker::UpdateError::OutOfBounds => proto::DatapointError::OutOfBounds,
+            broker::UpdateError::PermissionDenied => proto::DatapointError::AccessDenied,
+            broker::UpdateError::PermissionExpired => proto::DatapointError::AccessDenied,
         }
     }
 }

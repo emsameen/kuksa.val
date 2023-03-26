@@ -2,17 +2,17 @@
 
 - [Kuksa Databroker](#kuksa-data-broker)
   - [Intro](#intro)
-  - [Interface](#interface)
+  - [Interface](#grpc-interfaces)
   - [Relation to the COVESA Vehicle Signal Specification (VSS)](#relation-to-the-covesa-vehicle-signal-specification-vss)
   - [Building](#building)
     - [Build all](#build-all)
     - [Build all release](#build-all-release)
   - [Running](#running)
-    - [Broker](#broker)
-    - [Test the broker - run client/cli](#test-the-broker---run-clientcli)
-    - [Kuksa Data Broker Query Syntax](#databroker-query-syntax)
+    - [Broker](#databroker)
+    - [Test the broker - run client/cli](#test-the-databroker)
+    - [Kuksa Data Broker Query Syntax](#data-broker-query-syntax)
     - [Configuration](#configuration)
-    - [Build and run databroker container](#build-and-run-databroker-container)
+    - [Build and run databroker container](#build-and-run-databroker)
   - [Limitations](#limitations)
   - [GRPC overview](#grpc-overview)
 
@@ -20,13 +20,16 @@
 
 Kuksa Data Broker is a GRPC service acting as a broker of vehicle data / data points / signals.
 
-## GRPC Interface(s)
+## GRPC Interfaces
 
 Databroker implements a couple of GRPC interfaces.
+
 ### `kuksa.val.v1.VAL`
+
 This GRPC interface is under development and is meant to be used by kuksa-databroker, kuksa-val-server and the feeders.
 
 ### `sdv.databroker.v1.Broker`
+
 This interface is currently used by databroker clients. It is defined as follows (see [file](proto/sdv/databroker/v1/broker.proto) in the proto folder):
 
 ```protobuf
@@ -64,7 +67,7 @@ that's available in the [vss-tools](https://github.com/COVESA/vss-tools) reposit
 ./vss-tools/vspec2json.py -I spec spec/VehicleSignalSpecification.vspec vss.json
 ```
 
-The resulting vss.json can be loaded at startup my supplying the data broker with the command line argument:
+The resulting vss.json can be loaded at startup by supplying the data broker with the command line argument:
 
 ```shell
 --metadata vss.json
@@ -102,17 +105,33 @@ USAGE:
     databroker [OPTIONS]
 
 OPTIONS:
-        --address <ADDR>    Bind address [default: 127.0.0.1]
-        --port <PORT>       Bind port [default: 55555]
-        --metadata <FILE>   Populate data broker with metadata from file [env:
-                            KUKSA_DATA_BROKER_METADATA_FILE=]
-        --dummy-metadata    Populate data broker with dummy metadata
-    -h, --help              Print help information
-    -V, --version           Print version information
+        --address <ADDR>           Bind address [env: KUKSA_DATA_BROKER_ADDR=] [default: 127.0.0.1]
+        --port <PORT>              Bind port [env: KUKSA_DATA_BROKER_PORT=] [default: 55555]
+        --metadata <FILE>...       Populate data broker with metadata from (comma-separated) list of
+                                   files [env: KUKSA_DATA_BROKER_METADATA_FILE=]
+        --jwt-public-key <FILE>    Public key used to verify JWT access tokens
+        --dummy-metadata           Populate data broker with dummy metadata
+    -h, --help                     Print help information
+    -V, --version                  Print version information
 
 ```
 
-### Test the databroker - run client/cli
+### :warning: Default port not working on Mac OS
+The databroker default port `55555` is not usable in many versions of Mac OS. You can not bind it, or if it seems bound you still can not receive messages.
+Therefore, on Mac OS you need to start databroker on another port, e.g.
+
+```
+databroker --port 55556
+```
+
+Please note, this also applies if you use a container environment like K3S or Docker on Mac OS. If you forward the port or exposing the host network
+interfaces, the same problem occurs.
+
+For more information see also https://developer.apple.com/forums/thread/671197 
+
+Currently, to run databroker-cli (see below), you do need to change the port it connects to in databroker-cli code and recompile it.
+
+### Test the databroker
 
 Run the cli with:
 
@@ -138,14 +157,15 @@ This will enable `TAB`-completion for the available properties in the client. Ru
 
 Get data points by running "get"
 ```shell
-client> get Vehicle.ADAS.CruiseControl.Error
--> Vehicle.ADAS.CruiseControl.Error: NotAvailable
+sdv.databroker.v1 > get Vehicle.ADAS.CruiseControl.IsEnabled 
+[get]  OK
+Vehicle.ADAS.CruiseControl.IsEnabled: ( NotAvailable )
 ```
 
 Set data points by running "set"
 ```shell
-client> set Vehicle.ADAS.CruiseControl.Error Nooooooo!
--> Ok
+sdv.databroker.v1 > set Vehicle.ADAS.CruiseControl.IsEnabled false
+[set]  OK
 ```
 
 ### Data Broker Query Syntax
@@ -156,23 +176,25 @@ Detailed information about the databroker rule engine can be found in [QUERY.md]
 You can try it out in the client using the subscribe command in the client:
 
 ```shell
-client> subscribe
+sdv.databroker.v1 > subscribe
 SELECT
-  Vehicle.ADAS.ABS.Error
+  Vehicle.ADAS.ABS.IsError
 WHERE
-  Vehicle.ADAS.ABS.IsActive
+  Vehicle.ADAS.ABS.IsEngaged
 
--> status: OK
+[subscribe]  OK
+Subscription is now running in the background. Received data is identified by [1].
 ```
 
 ### Configuration
 
 | parameter      | default value | cli parameter    | environment variable              | description                                  |
 |----------------|---------------|------------------|-----------------------------------|----------------------------------------------|
-| metadata       | <no active>   | --metadata       | KUKSA_DATA_BROKER_METADATA_FILE | Populate data broker with metadata from file |
+| metadata       | <no active>   | --metadata       | KUKSA_DATA_BROKER_METADATA_FILE   | Populate data broker with metadata from file |
 | dummy-metadata | <no active>   | --dummy-metadata | <no active>                       | Populate data broker with dummy metadata     |
-| listen_address | "127.0.0.1"   | --address        | KUKSA_DATA_BROKER_ADDR          | Listen for rpc calls                         |
-| listen_port    | 55555         | --port           | KUKSA_DATA_BROKER_PORT          | Listen for rpc calls                         |
+| listen_address | "127.0.0.1"   | --address        | KUKSA_DATA_BROKER_ADDR            | Listen for rpc calls                         |
+| listen_port    | 55555         | --port           | KUKSA_DATA_BROKER_PORT            | Listen for rpc calls                         |
+| jwt-public-key | <no active>   | --jwt-public-key | <no active>                       | Public key used to verify JWT access tokens
 
 To change the default configuration use the arguments during startup see [run section](#running) or environment variables.
 

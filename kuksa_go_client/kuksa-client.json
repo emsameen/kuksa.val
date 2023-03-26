@@ -1,0 +1,8 @@
+{
+    "serverAddress": "localhost",
+    "serverPort": 55555,
+    "insecure": false,
+    "certsDir": "../kuksa_certificates/",
+    "tokenPath" : "../kuksa_certificates/jwt/super-admin.json.token",
+    "protocol": "ws"
+}

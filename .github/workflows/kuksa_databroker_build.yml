@@ -32,6 +32,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install Protoc
+        run: sudo apt-get install -y protobuf-compiler
       - uses: actions/checkout@v3
       - name: cargo fmt
         working-directory: ${{github.workspace}}
@@ -45,6 +47,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install Protoc
+        run: sudo apt-get install -y protobuf-compiler
       - uses: actions/checkout@v3
       - uses: actions-rs/install@v0.1
         with:
@@ -108,20 +112,20 @@ jobs:
     uses: ./.github/workflows/check_push_rights.yml
     secrets: inherit
 
-# Run on selfhosted, becasue our runner has native ARM build in a remote
-# builder (no need for qemu
+# Run on selfhosted, because our runner has native ARM build in a remote
+# builder (no need for qemu)
   build-container:
     runs-on: ubuntu-latest
     needs: checkrights
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with: 
         submodules: recursive
 
     - name: Docker meta
       id: meta
-      uses: docker/metadata-action@v3.5.0
+      uses: docker/metadata-action@v4
       with:
         # list of Docker images to use as base name for tags
         images: |
@@ -146,13 +150,13 @@ jobs:
       if: needs.checkrights.outputs.have_secrets == 'true'
       uses: docker/login-action@v2
       with:
-          registry: ${{ needs.checkrights.outputs.registry }}
+          registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build kuksa.val databroker container and push to ghcr.io
+    - name: Build kuksa.val databroker container container and push to ghcr.io (and ttl.sh)
       id: ghcr-build
-      if: needs.checkrights.outputs.have_secrets == 'true'
+      if: ${{ needs.checkrights.outputs.have_secrets == 'true' && github.event_name != 'pull_request' }}
       uses: docker/build-push-action@v3
       with:
         platforms: linux/amd64
@@ -161,23 +165,47 @@ jobs:
         push: true
         tags: |
           ${{ steps.meta.outputs.tags }}
-          ttl.sh/kuksa.val/kuksa-databroker-${{github.sha}}:1h
+          ttl.sh/kuksa.val/kuksa-databroker-${{github.sha}}
         labels: ${{ steps.meta.outputs.labels }}
 
     - name: Build ephemereal kuksa.val databroker container and push to ttl.sh
-      if: needs.checkrights.outputs.have_secrets == 'false'
+      if: ${{ needs.checkrights.outputs.have_secrets == 'false' || github.event_name == 'pull_request' }}
       id: tmp-build
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v3
       with:
         platforms: linux/amd64
         file: ./kuksa_databroker/Dockerfile
         context: .
         push: true
-        tags: "ttl.sh/kuksa.val/kuksa-databroker-${{github.sha}}:1h"
+        tags: "ttl.sh/kuksa.val/kuksa-databroker-${{github.sha}}"
         labels: ${{ steps.meta.outputs.labels }}
+  
+    - name: Posting message
+      uses: ./.github/actions/post-container-location
+      with:
+        image: ttl.sh/kuksa.val/kuksa-databroker-${{github.sha}}
 
+    - name:  Extracting ARM64 binaries
+      uses: ./.github/actions/copy-from-oci
+      with:
+        platform: linux/arm64
+        id: databroker-arm64
+        image: ttl.sh/kuksa.val/kuksa-databroker-${{github.sha}}
+        src: /app/
+        export: true
+        transform: s/app/databroker/
 
-    
+        
+    - name:  Extracting AMD64 binaries
+      uses: ./.github/actions/copy-from-oci
+      with:
+        platform: linux/amd64
+        id: databroker-amd64
+        image: ttl.sh/kuksa.val/kuksa-databroker-${{github.sha}}
+        src: /app/
+        export: true
+        transform: s/app/databroker/
+
   integration-test:
     name: Run integration test
     runs-on: ubuntu-latest
@@ -189,6 +217,6 @@ jobs:
         
       - name: Run integration test
         env:
-          DATABROKER_IMAGE: ttl.sh/kuksa.val/kuksa-databroker-${{github.sha}}:1h
+          DATABROKER_IMAGE: ttl.sh/kuksa.val/kuksa-databroker-${{github.sha}}
         run: |
           ${{github.workspace}}/kuksa_databroker/integration_test/run.sh
